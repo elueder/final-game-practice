@@ -1,23 +1,248 @@
 <!DOCTYPE html>
 <html>
-    <head>
-      <title>Example</title>
-      <style>
-    	   * { padding: 0; margin: 0; }
-    	    canvas { background: #eee; display: block; margin: 0 auto; }
-      </style>
-      <meta name="viewport" content="width=device-width, initial-scale=1">
 
-      <!-- Do not add `link` tags-->
-      <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+<head>
+  <title>Example</title>
+  <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
 
-      <!-- Do not add `script` tags-->
-      <script src="public/vendor.js" type="text/javascript" charset="utf-8" defer></script>
-      <script src="public/application.js" type="text/javascript" charset="utf-8" defer></script>
-    </head>
-    <body>
+    canvas {
+      background: #eee;
+      display: block;
+      margin: 0 auto;
+    }
+  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-      <canvas id=myCanvas width="480" height="320"></canvas>
+  <!-- Do not add `link` tags-->
+  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
 
-    </body>
+  <!-- Do not add `script` tags-->
+  <script src="public/vendor.js" type="text/javascript" charset="utf-8" defer></script>
+  <script src="public/application.js" type="text/javascript" charset="utf-8" defer></script>
+</head>
+
+<body>
+
+  <canvas id=myCanvas width="480" height="320"></canvas>
+
+  <script>
+    var canvas = document.getElementById("myCanvas");
+    var ctx = canvas.getContext("2d");
+
+    // set ball size
+    var ballRadius = 10;
+
+    // set game board size
+    var x = canvas.width / 2;
+    var y = canvas.height - 30;
+
+    // set movement for ball
+    var dx = 2;
+    var dy = -2;
+
+    // create paddle
+    var paddleHeight = 10;
+    var paddleWidth = 75;
+    var paddleX = (canvas.width - paddleWidth) / 2;
+
+    // default values for right and left arrow keys
+    var rightPressed = false;
+    var leftPressed = false;
+
+    // create attributes for brick array
+    var brickRowCount = 3;
+    var brickColumnCount = 5;
+    var brickWidth = 75;
+    var brickHeight = 20;
+    var brickPadding = 10;
+    var brickOffsetTop = 30;
+    var brickOffsetLeft = 30;
+
+    // create brick array
+    var bricks = [];
+    for (var c = 0; c < brickColumnCount; c++) {
+      bricks[c] = [];
+      for (var r = 0; r < brickRowCount; r++) {
+        bricks[c][r] = {
+          x: 0,
+          y: 0,
+          status: 1
+        }
+      }
+    }
+
+    // separate bricks so they don't all stack in the corner
+    var brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft;
+    var brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop;
+
+    // set score
+    var score = 0
+
+    // set lives
+    var lives = 3
+
+    // draw ball on game board
+    function drawBall() {
+      ctx.beginPath()
+      ctx.arc(x, y, ballRadius, 0, Math.PI * 2)
+      ctx.fillStyle = "#0095DD"
+      ctx.fill()
+      ctx.closePath()
+    }
+
+    // draw paddle on game board
+    function drawPaddle() {
+      ctx.beginPath()
+      ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight)
+      ctx.fillStyle = "#0095DD"
+      ctx.fill()
+      ctx.closePath()
+    }
+
+    // draw bricks on game board
+    // c for column; r for row
+    function drawBricks() {
+      for (var c = 0; c < brickColumnCount; c++) {
+        for (var r = 0; r < brickRowCount; r++) {
+          if (bricks[c][r].status == 1) {
+            var brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft
+            var brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop
+            bricks[c][r].x = brickX
+            bricks[c][r].y = brickY
+            ctx.beginPath()
+            ctx.rect(brickX, brickY, brickWidth, brickHeight)
+            ctx.fillStyle = "#0095DD"
+            ctx.fill()
+            ctx.closePath()
+          }
+        }
+      }
+    }
+
+    // create game
+    function draw() {
+      // clear game board on each frame
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      // call drawBall and drawPaddle to make pieces on board
+      drawBall()
+      drawPaddle()
+      drawScore()
+      drawLives()
+      collisionDetection()
+      drawBricks()
+      // add limitations ("bounce" off the walls)
+      if (y + dy < 0) {
+        dy = -dy
+      }
+      if (y + dy < ballRadius) {
+        dy = -dy
+        // make ball "bounce" off paddle
+      } else if (y + dy > canvas.height - ballRadius) {
+        if (x > paddleX && x < paddleX + paddleWidth) {
+          dy = -dy
+        } else {
+          // if you fall off the bottom you die
+          lives--
+          if (!lives) {
+            alert("GAME OVER")
+            document.location.reload()
+          } else {
+            x = canvas.width/2
+            y = canvas.height-30
+            dx = 2
+            dy = -2
+            paddleX = (canvas.width-paddleWidth)/2
+          }
+        }
+      }
+      // bounce off side walls
+      if (x + dx > canvas.width || x + dx < 0) {
+        dx = -dx
+      }
+      x += dx
+      y += dy
+      // add paddle controlls
+      if (rightPressed && paddleX < canvas.width - paddleWidth) {
+        paddleX += 7
+      } else if (leftPressed && paddleX > 0) {
+        paddleX -= 7
+      }
+      requestAnimationFrame(draw)
+    }
+
+    // connect paddle controls to right and left keys
+    document.addEventListener("keydown", keyDownHandler, false)
+    document.addEventListener("keyup", keyUpHandler, false)
+    document.addEventListener("mousemove", mouseMoveHandler, false)
+
+    // control movement with mouse rather than keys
+    function mouseMoveHandler(e) {
+    var relativeX = e.clientX - canvas.offsetLeft;
+    if(relativeX > 0 && relativeX < canvas.width) {
+        paddleX = relativeX - paddleWidth/2
+      }
+    }
+
+    // event handler for right & left keys
+    function keyDownHandler(e) {
+      if (e.keyCode == 39) {
+        rightPressed = true
+      } else if (e.keyCode == 37) {
+        leftPressed = true
+      }
+    }
+
+    // event handler for right & left keys
+    function keyUpHandler(e) {
+      if (e.keyCode == 39) {
+        rightPressed = false
+      } else if (e.keyCode == 37) {
+        leftPressed = false
+      }
+    }
+
+    // check if ball has hit a brick
+    function collisionDetection() {
+      for (var c = 0; c < brickColumnCount; c++) {
+        for (var r = 0; r < brickRowCount; r++) {
+          var b = bricks[c][r]
+          if (b.status == 1) {
+            if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
+              dy = -dy
+              b.status = 0
+              score++
+              if(score == brickRowCount*brickColumnCount) {
+                alert("YOU WIN, CONGRATULATIONS!")
+                document.location.reload()
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // show score
+    function drawScore() {
+      ctx.font = "16px Arial"
+      ctx.fillStyle = "#0095DD"
+      ctx.fillText("Score: " + score, 8, 20)
+    }
+
+    function drawLives() {
+      ctx.font = "16px Arial"
+      ctx.fillStyle = "#0095DD"
+      ctx.fillText("Lives: "+lives, canvas.width-65, 20)
+    }
+    // set ball speed
+    // setInterval(draw, 10)
+    // refactor to make it smoother
+    draw()
+  </script>
+
+</body>
+
 </html>
